@@ -15,6 +15,7 @@ table! {
         title -> Varchar,
         link -> Nullable<Varchar>,
         author -> Int4,
+        created_at -> Timestamp,
     }
 }
 

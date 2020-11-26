@@ -14,6 +14,7 @@ CREATE TABLE posts (
     title VARCHAR NOT NULL,
     link VARCHAR,
     author INT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
 
     CONSTRAINT fk_author
         FOREIGN KEY(author)

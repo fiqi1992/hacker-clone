@@ -2,7 +2,7 @@ use super::schema::{users, posts};
 use diesel::{Queryable, Insertable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Queryable)]
+#[derive(Debug, Serialize, Queryable)]
 pub struct Post {
     pub id: i32,
     pub title: String,
@@ -31,7 +31,7 @@ impl NewPost {
     }
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct User {
     pub id: i32,
     pub username: String,

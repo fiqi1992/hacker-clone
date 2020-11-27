@@ -1,8 +1,42 @@
-use super::schema::{users, posts};
+use super::schema::{users, posts, comments};
 use diesel::{Queryable, Insertable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Queryable)]
+#[derive(Debug, Serialize, Queryable, Identifiable, Associations)]
+#[belongs_to(Post)]
+pub struct Comment {
+    pub id: i32,
+    pub comment: String,
+    pub post_id: i32,
+    pub user_id: i32,
+    pub parent_comment_id: Option<i32>,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Serialize, Insertable)]
+#[table_name="comments"]
+pub struct NewComment {
+    pub comment: String,
+    pub post_id: i32,
+    pub user_id: i32,
+    pub parent_comment_id: Option<i32>,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+impl NewComment {
+    pub fn new(comment: String, post_id: i32, 
+        user_id: i32, parent_comment_id: Option<i32>) -> Self{
+        NewComment {
+            comment: comment,
+            post_id: post_id,
+            user_id: user_id,
+            parent_comment_id: parent_comment_id,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Queryable, Identifiable)]
 pub struct Post {
     pub id: i32,
     pub title: String,

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Queryable, Identifiable, Associations)]
 #[belongs_to(Post)]
+#[belongs_to(User)]
 pub struct Comment {
     pub id: i32,
     pub comment: String,
@@ -36,7 +37,8 @@ impl NewComment {
     }
 }
 
-#[derive(Debug, Serialize, Queryable, Identifiable)]
+#[derive(Debug, Serialize, Queryable, Identifiable, Associations)]
+#[belongs_to(User, foreign_key="author")]
 pub struct Post {
     pub id: i32,
     pub title: String,
@@ -65,7 +67,7 @@ impl NewPost {
     }
 }
 
-#[derive(Queryable, Serialize)]
+#[derive(Debug, Serialize, Queryable, Identifiable)]
 pub struct User {
     pub id: i32,
     pub username: String,

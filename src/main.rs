@@ -10,6 +10,7 @@ use actix_identity::{Identity, CookieIdentityPolicy, IdentityService};
 use diesel::prelude::*;
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
+use argonautica::Verifier;
 
 use models::{User, NewUser, LoginUser, Post, NewPost, Comment, NewComment};
 
@@ -205,13 +206,25 @@ async fn process_login(data: web::Form<LoginUser>, id:Identity) -> impl Responde
 
     match user {
         Ok(u) => {
-            if u.password == data.password {
+            dotenv().ok();
+            let secret = std::env::var("SECRET_KEY")
+                .expect("SECRET_KEY must be set");
+
+            let valid = Verifier::default()
+                .with_hash(u.password)
+                .with_password(data.password.clone())
+                .with_secret_key(secret)
+                .verify()
+                .unwrap();
+            
+            if valid {
                 let session_token = String::from(u.username);
                 id.remember(session_token);
                 HttpResponse::Ok().body(format!("Logged in: {}", data.username))
+                
             } else {
-                HttpResponse::Ok().body("Password is incorrect")
-            }
+                    HttpResponse::Ok().body("Password is incorrect.")
+                }
         },
 
         Err(e) => {
@@ -251,11 +264,13 @@ async fn process_signup(data: web::Form<NewUser>) -> impl Responder {
     use schema::users;
 
     let connection = establish_connection();
+    
+    let new_user = NewUser::new(data.username.clone(), data.email.clone(), data.password.clone());
 
     diesel::insert_into(users::table)
-    .values(&*data)
-    .get_result::<User>(&connection)
-    .expect("Error registering user.");
+        .values(&new_user)
+        .get_result::<User>(&connection)
+        .expect("Error registering user.");
 
     println!("{:?}", data);
     HttpResponse::Ok().body(format!("Successfully saved user: {}", data.username))

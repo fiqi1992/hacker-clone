@@ -1,14 +1,18 @@
 #[macro_use]
 extern crate diesel;
+extern crate log;
 pub mod schema;
 pub mod models;
 
 use actix_web::{HttpServer, App, web, HttpResponse, Responder};
+use actix_web::middleware::Logger;
 use tera::{Tera, Context};
 use serde::{Serialize, Deserialize};
 use actix_identity::{Identity, CookieIdentityPolicy, IdentityService};
 use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::{r2d2::ConnectionManager};
+type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 use dotenv::dotenv;
 use argonautica::Verifier;
 
@@ -235,11 +239,11 @@ async fn process_login(data: web::Form<LoginUser>, id:Identity) -> impl Responde
    
 }
 
-async fn index(tera: web::Data<Tera>) -> impl Responder {
+async fn index(tera: web::Data<Tera>, pool: web::Data<Pool>) -> impl Responder {
     use schema::posts::dsl::{posts};
     use schema::users::dsl::{users};
     
-    let connection = establish_connection();
+    let connection = pool.get().unwrap();
     let all_posts :Vec<(Post, User)> = posts.inner_join(users)
         .load(&connection)
         .expect("Error retrieving all posts.");
@@ -312,7 +316,17 @@ async fn user_profile(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let pool = r2d2::Pool::builder().build(manager)
+        .expect("Failed to create postgres pool");
+
+    env_logger::init();
+    
+    /* HttpServer::new(|| {
         //memberikan ** agar tera bisa mengakses subfolder
         let tera = Tera::new("templates/**/*").unwrap();
         App::new()
@@ -323,6 +337,20 @@ async fn main() -> std::io::Result<()> {
         ))
 
         .data(tera)
+        .route("/", web::get().to(index)) */
+
+    HttpServer::new(move || {
+        let tera = Tera::new("templates/**/*").unwrap();
+
+        App::new()
+            .wrap(Logger::default())
+            .wrap(IdentityService::new(
+                CookieIdentityPolicy::new(&[0;32])
+                .name("auth-cookie")
+                .secure(false)
+            ))
+        .data(tera)
+        .data(pool.clone())
         .route("/", web::get().to(index))
         .route("/signup", web::get().to(signup)) //menambah route signup
         .route("/signup", web::post().to(process_signup)) //menambah route process signup
@@ -344,4 +372,5 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8000")?
     .run()
     .await
+    
 }
